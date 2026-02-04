@@ -1,0 +1,529 @@
+---
+title: "Final project"
+author: "Yuet Shan LO"
+output:
+  html_document:  
+    toc: true
+    toc_float: true
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Declarition
+This document involved the use of genAI for comment, and some of the figure debugging with some graphics formatting, and improvement of the grammar.
+
+# Dataset introduction
+
+# Background:
+
+The data is used to predict the age of the abalone base on the length, Sex, Diameter,Height, Whole weight, Shrucked weight,Viscera weight and shell weight. The **target variable** is ***rings.*** The ***Rings*** target is showing the age +1.5, which is an integer. Other variables, expect **sex**, is contentious variable that are really suitable to predict the value using regression method.
+
+## The number of variables:
+
+There is 4177 instances, with 8 feature and 1 target, at total is : $$4177 \times 9 = 37593 \  \text{variables}$$
+
+## The method that retains the age of the abalone (rings):
+
+According to the introduction of dataset,refer to the abalone.name files 
+
+> *"The age of abalone is determined by cutting the shell through the cone, staining it, and counting the number of rings through a microscope"*
+
+That means the dataset are handled in lab
+
+## Handling method of the missing value:
+
+According to the introduction of dataset, refer to the abalone.name files
+
+> *"From the original data examples with missing values were removed (the majority having the predicted value missing)."*
+
+That mean that they simply clear all the missing data
+
+# License & citations
+
+This dataset is licensed under the [Creative Commons Attribution 4.0 International (CC BY 4.0) license.](https://creativecommons.org/licenses/by/4.0/).
+
+## Explanation of the License:
+
+The license can be used for all usage, including sharing,and adapt the usage freely, even using as a profit measure. However, using the dataset need to be cited and credit to the author.
+
+# Dataset
+
+```{r}
+# import library
+library(tidyverse)
+
+
+
+# setup the colomn names
+colomns_names <- c("Sex", "Length", "Diameter", "Height", "Whole_weight", "Shucked_weight", "Viscera_weight", "Shell_weight", "Rings")
+
+colomns_names 
+d <- read.csv('abalone.data',sep = ","
+                 ,header = FALSE,
+                 col.names = colomns_names,
+                 na.strings = c(""," ","NA"))
+
+
+
+## drop nan colomns
+d <- d %>% drop_na()
+
+```
+
+```{r, fig.width=12, fig.height=12}
+# Load required libraries for plotting
+library(GGally)    # For ggpairs (pairplot functionality)
+library(ggplot2)   # Core plotting library for theme customization
+
+# Define features to include in the pairplot
+features <- c("Length", "Diameter", "Height", "Whole_weight", 
+              "Shucked_weight", "Viscera_weight", "Shell_weight")
+
+# Create pairplot with scatter plots (lower) and correlations (upper)
+g1 <- ggpairs(
+  data = d, 
+  columns = which(names(d) %in% features),  # Select feature columns
+  aes(colour = Sex, alpha = 0.5),           # Color by Sex, set transparency
+  lower = list(continuous = wrap("points", size = 1, alpha = 0.2)),  # Scatter plots
+  upper = list(continuous = wrap("cor", size = 4, method = "pearson")), # Correlations
+  diag = list(continuous = wrap("densityDiag", alpha = 0.5)),  # Density plots on diagonal
+  title = "Pairplot of Abalone Dataset Features by Sex",
+  axisLabels = "show"  # Show axis labels
+) +
+  # Apply a clean, minimal theme with scientific styling
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "plain", size = 14), # Centered, plain title
+    axis.text = element_text(color = "black"),  # Black axis text for contrast
+    strip.text = element_text(face = "plain", size = 10), # Simple, plain facet labels
+    strip.background = element_rect(fill = "white", color = "black"), # Plain facet background
+    panel.grid.minor = element_blank()  # Remove minor grid lines for clarity
+  )
+
+# Display the pairplot
+g1
+```
+
+# Box and Sina plot
+
+```{r, fig.width=12, fig.height=10}
+# Load required libraries for plotting and data manipulation
+library(ggplot2)      # Core plotting library for visualizations
+library(ggforce)      # For geom_sina (sina plots)
+library(tidyr)        # For pivot_longer to reshape data
+
+# =============================================
+# DATA PREPARATION
+# =============================================
+
+# Define features to plot (Abalone measurements)
+features <- c("Length", "Diameter", "Height", "Whole_weight", 
+              "Shucked_weight", "Viscera_weight", "Shell_weight")
+
+# Create a numeric copy of Rings and categorize Rings into 5 groups
+d$Rings_numeric <- d$Rings  # Preserve original Rings as numeric
+d$Rings <- cut(
+  d$Rings, 
+  breaks = c(0, 5, 10, 15, 20, 25), 
+  labels = c("0-5", "6-10", "11-15", "16-20", "21-25"),
+  include.lowest = TRUE  # Ensure lowest value is included in first bin
+)
+
+# Reshape data to long format for faceting by feature
+d_long <- d %>%
+  pivot_longer(
+    cols = all_of(features), 
+    names_to = "Feature", 
+    values_to = "Value"
+  )
+
+# =============================================
+# VISUALIZATION
+# =============================================
+
+# Create faceted boxplot and sina plot
+ggplot(data = d_long, aes(x = Rings, y = Value)) +
+  # Add boxplots, colored by Rings, hiding outliers (handled by sina)
+  geom_boxplot(
+    aes(fill = Rings), 
+    outlier.shape = NA, 
+    alpha = 0.6  # Light transparency for layering
+  ) +
+  # Add sina plot for individual points, colored by Rings
+  geom_sina(
+    aes(colour = Rings), 
+    size = 1.2,       # Moderate point size for visibility
+    alpha = 0.4,      # Transparency to handle overlap
+    maxwidth = 0.4    # Fit points within boxplot boundaries
+  ) +
+  # Customize fill colors for boxplots
+  scale_fill_manual(
+    values = c("#FF9999", "#66B3FF", "#99FF99", "#FFCC99", "#FFD700"),
+    name = "Rings"    # Legend title
+  ) +
+  # Customize point colors for sina plots
+  scale_colour_manual(
+    values = c("#FF9999", "#66B3FF", "#99FF99", "#FFCC99", "#FFD700"),
+    name = "Rings"    # Legend title
+  ) +
+  # Facet by Feature with free y-scales for different ranges
+  facet_wrap(
+    ~ Feature, 
+    scales = "free_y", 
+    ncol = 4,          # Arrange in 4 columns (4x2 grid)
+    labeller = label_value  # Use feature names as labels
+  ) +
+  # Add descriptive title and axis labels
+  labs(
+    title = "Distribution of Abalone Features by Rings",
+    subtitle = "Boxplots and Sina Plots Across Rings Categories",
+    x = "Rings (Age Groups)",
+    y = "Feature Value (mm or g)",
+    caption = "Data source: Abalone dataset"
+  ) +
+  # Apply a clean, scientific theme
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "plain", size = 14), # Centered, plain title
+    plot.subtitle = element_text(hjust = 0.5, face = "plain", size = 12), # Centered, plain subtitle
+    strip.text = element_text(face = "plain", size = 10), # Simple, plain facet labels
+    strip.background = element_rect(fill = "white", color = "black"), # Plain facet background
+    axis.text = element_text(color = "black"), # Black axis text
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels
+    panel.grid.minor = element_blank(),        # Remove minor grid lines
+    legend.position = "top",                   # Legend at top
+    legend.title = element_text(face = "plain", size = 10) # Plain legend title
+  )
+```
+
+# PCA analysis
+
+```{r, fig.width=12, fig.height=6}
+# Load required library for plotting
+library(ggplot2)   # Core plotting library for visualizations
+
+# Perform PCA on selected features with scaling
+pca_result <- prcomp(d[features], scale. = TRUE)  # Standardize features for PCA
+
+# Extract first two principal components and create a data frame
+pca_data <- data.frame(
+  PC1 = pca_result$x[, 1],    # First principal component
+  PC2 = pca_result$x[, 2],    # Second principal component
+  Rings = as.factor(d$Rings), # Treat Rings as categorical for coloring
+  Sex = d$Sex                 # Sex for faceting
+)
+
+# Create a scatter plot of PCA results, faceted by Sex
+ggplot(data = pca_data, aes(x = PC1, y = PC2, color = Rings)) +
+  # Add scatter points with transparency and size
+  geom_point(alpha = 0.5,              # Transparency to handle overlapping points
+             size = 3) +               # Larger points for visibility
+  # Facet by Sex, with 3 columns
+  facet_wrap(~ Sex, ncol = 3, 
+             labeller = label_both) +  # Include variable name in facet labels
+  # Custom color palette for Rings categories
+  scale_color_manual(values = c("#FF9999", "#66B3FF", "#99FF99", 
+                                "#FFCC99", "#FFD700"), 
+                     name = "Rings") +      # Legend title for clarity
+  # Add descriptive title and axis labels
+  labs(
+    title = "PCA of Abalone Dataset by Sex",
+    subtitle = "First Two Principal Components",
+    x = sprintf("Principal Component 1 (%.1f%% variance)", 
+                100 * pca_result$sdev[1]^2 / sum(pca_result$sdev^2)),
+    y = sprintf("Principal Component 2 (%.1f%% variance)", 
+                100 * pca_result$sdev[2]^2 / sum(pca_result$sdev^2)),
+    caption = "Data source: Abalone dataset"
+  ) +
+  # Apply a clean theme with customized text sizes
+  theme_minimal(base_size = 14) +      # Increase base font size for readability
+  # Customize theme for legend and facet appearance
+  theme(
+    legend.position = "right",         # Legend on the right
+    legend.title = element_text(face = "bold"), # Bold legend title
+    plot.title = element_text(hjust = 0.5, face = "bold"), # Centered, bold title
+    plot.subtitle = element_text(hjust = 0.5), # Centered subtitle
+    strip.text = element_text(face = "bold"),  # Bold facet labels
+    axis.text = element_text(color = "black"), # Black axis text for contrast
+    panel.grid.minor = element_blank()         # Remove minor grid lines for clarity
+  )
+
+```
+
+```{r}
+summary(pca_result)
+
+
+```
+
+```{r}
+# Get PCA scores
+pca_scores <- as.data.frame(pca_result$x)
+head(pca_scores)
+
+# Extract loadings
+pca_loadings <- pca_result$rotation
+print(pca_loadings)  # View loadings
+```
+
+### **For explanatory data visualization**
+
+Next, I will discover out mainly focusing on the relationship between the length and the height, as the ***Length*** contribute the most on PCA and also the PC1 stand for over 90% of proportion to the importance of data, also the correlation between the length and the diameter in the **pairplots** have the **second most** correlation. However, I will not discover the diameter as they seems over-correlated and similar in box and sina plots. Meaning they have a some common relationship that cannot explain the results. The height contribute 80 % of the PC2 , and also the sinaplot and boxplot shows both height and length show a logramatic relationship of the rings.
+
+# Explanatory data plot
+
+```{r, fig.width=12, fig.height=8}
+# Load required libraries for plotting
+library(ggplot2)   # Core plotting library for creating visualizations
+library(GGally)    # For advanced visualizations like pairs plots (optional for this plot)
+library(ggforce)   # For ggplot2 extensions (optional unless using specific features)
+
+# Create a scatter plot with regression lines, faceted by Sex
+ggplot(data = d, aes(x = Length, y = Height)) +
+  # Scatter points colored by Rings, with transparency and size
+  geom_point(aes(colour = as.factor(Rings)),  # Treat Rings as categorical
+             alpha = 0.5,                     # Transparency to handle overlapping points
+             size = 3) +                      # Larger points for visibility in large plot
+  # Linear regression line without confidence interval
+  geom_smooth(method = "lm", 
+              se = FALSE,                     # No confidence interval band
+              color = "black",                # Black line for contrast
+              linewidth = 1.2) +              # Slightly thicker line for clarity
+  # Custom color palette for Rings categories
+  scale_color_manual(values = c("#FF9999", "#66B3FF", "#99FF99", 
+                                "#FFCC99", "#FFD700"), 
+                     name = "Rings") +            # Legend title for clarity
+  # Facet by Sex, with 3 columns for side-by-side comparison
+  facet_wrap(~ Sex, ncol = 3, 
+             labeller = label_both) +        # Include variable name in facet labels
+  # Add descriptive title and axis labels
+  labs(title = "Relationship Between Length and Height by Sex",
+       subtitle = "Faceted by Sex with Linear Regression",
+       x = "Length (mm)",
+       y = "Height (mm)",
+       caption = "Data source: Abalone dataset") +
+  # Apply a clean theme with customized text sizes
+  theme_minimal(base_size = 14) +               # Increase base font size for readability
+  # Customize theme for legend and facet appearance
+  theme(
+    legend.position = "top",                    # Legend at top for accessibility
+    legend.title = element_text(face = "bold"), # Bold legend title
+    plot.title = element_text(hjust = 0.5, face = "bold"), # Centered, bold title
+    plot.subtitle = element_text(hjust = 0.5),  # Centered subtitle
+    strip.text = element_text(face = "bold"),   # Bold facet labels
+    axis.text = element_text(color = "black"),  # Black axis text for contrast
+    panel.grid.minor = element_blank()          # Remove minor grid lines for clarity
+  )
+
+```
+
+# plotly intergration
+
+```{r, fig.width=8, fig.height=8}
+# Load required libraries
+library(plotly)       # For interactive plotting
+library(dplyr)        # For data manipulation
+library(RColorBrewer) # For color palette (Paired)
+
+# =============================================
+# DATA PREPARATION
+# =============================================
+
+# Split dataset by Sex (F=Female, M=Male, I=Infant)
+# Assumes 'd' contains columns: Length, Height, Sex, Rings, Rings_numeric
+d_split <- split(d, d$Sex)
+
+# Fit linear regression models (Height ~ Length) for each sex group
+# and add predicted values for regression lines
+d_with_preds <- lapply(d_split, function(subset) {
+  model <- lm(Height ~ Length, data = subset)  # Fit linear regression
+  subset$predicted <- predict(model)           # Add predicted Height values
+  subset
+}) %>% bind_rows()  # Combine subsets into a single dataframe
+
+# =============================================
+# VISUALIZATION SETUP
+# =============================================
+
+# Define a distinct color palette for Sex categories
+# Use RColorBrewer 'Paired' palette (colors 1, 3, 5 for contrast)
+sex_colors <- brewer.pal(3, "Paired")[c(1, 3, 5)]
+names(sex_colors) <- c("F", "M", "I")  # Assign colors to Sex levels
+
+# =============================================
+# MAIN SCATTER PLOT WITH REGRESSION LINES
+# =============================================
+
+# Initialize scatter plot with markers
+fig_scatter <- plot_ly(data = d_with_preds, type = 'scatter', mode = 'markers') %>%
+  # Add scatter points for each data point
+  add_markers(
+    x = ~Length,          # X-axis: Length
+    y = ~Height,          # Y-axis: Height
+    color = ~Rings_numeric, # Color by continuous Rings (gradient)
+    colors = "Viridis",   # Use Viridis for scientific, perceptually uniform scale
+    symbol = ~Sex,        # Different shapes for Sex categories
+    symbols = c('circle', 'square', 'diamond'),  # Shapes for F, M, I
+    marker = list(
+      line = list(color = ~Sex, colors = sex_colors, width = 1), # Outline by Sex
+      size = 6           # Smaller marker size for cleaner look
+    ),
+    # Custom hover text for interactivity
+    text = ~paste("Length:", round(Length, 2), "mm",
+                  "<br>Height:", round(Height, 2), "mm",
+                  "<br>Rings:", Rings,
+                  "<br>Sex:", recode(Sex, F = "Female", M = "Male", I = "Infant")),
+    hoverinfo = 'text',  # Display custom hover text
+    showlegend = TRUE,   # Include in legend
+    legendgroup = ~Sex,  # Group by Sex for legend consistency
+    name = ~recode(Sex, F = "Female", M = "Male", I = "Infant")  # Friendly legend names
+  ) %>%
+  # Add regression lines for each Sex group
+  add_lines(
+    x = ~Length,
+    y = ~predicted,
+    line = list(color = ~Sex, colors = sex_colors, width = 2), # Thinner lines
+    showlegend = FALSE,   # Avoid duplicating legend entries
+    legendgroup = ~Sex,   # Match with marker groups
+    name = ~recode(Sex, F = "Female", M = "Male", I = "Infant")
+  ) %>%
+  # Configure axis labels
+  layout(
+    xaxis = list(title = "Length (mm)", zeroline = FALSE, gridcolor = "lightgrey"),
+    yaxis = list(title = "Height (mm)", zeroline = FALSE, gridcolor = "lightgrey")
+  )
+
+# =============================================
+# MARGINAL HISTOGRAMS
+# =============================================
+
+# Top histogram (Length distribution by Sex)
+fig_hist_x <- plot_ly() %>%
+  # Female Length distribution
+  add_histogram(
+    data = d_with_preds %>% filter(Sex == "F"),
+    x = ~Length,
+    marker = list(color = sex_colors["F"]),
+    opacity = 0.6,     # Slightly more transparent for clarity
+    showlegend = FALSE,
+    legendgroup = "Female",
+    name = "Female"
+  ) %>%
+  # Male Length distribution
+  add_histogram(
+    data = d_with_preds %>% filter(Sex == "M"),
+    x = ~Length,
+    marker = list(color = sex_colors["M"]),
+    opacity = 0.6,
+    showlegend = FALSE,
+    legendgroup = "Male",
+    name = "Male"
+  ) %>%
+  # Infant Length distribution
+  add_histogram(
+    data = d_with_preds %>% filter(Sex == "I"),
+    x = ~Length,
+    marker = list(color = sex_colors["I"]),
+    opacity = 0.6,
+    showlegend = FALSE,
+    legendgroup = "Infant",
+    name = "Infant"
+  ) %>%
+  # Configure histogram layout (minimal axes)
+  layout(
+    xaxis = list(showticklabels = FALSE, title = "", showline = FALSE, zeroline = FALSE),
+    yaxis = list(showticklabels = FALSE, title = "", showline = FALSE, zeroline = FALSE),
+    barmode = "overlay"  # Overlay histograms for comparison
+  )
+
+# Right histogram (Height distribution by Sex)
+fig_hist_y <- plot_ly() %>%
+  # Female Height distribution
+  add_histogram(
+    data = d_with_preds %>% filter(Sex == "F"),
+    y = ~Height,
+    marker = list(color = sex_colors["F"]),
+    opacity = 0.6,
+    showlegend = FALSE,
+    legendgroup = "Female",
+    name = "Female"
+  ) %>%
+  # Male Height distribution
+  add_histogram(
+    data = d_with_preds %>% filter(Sex == "M"),
+    y = ~Height,
+    marker = list(color = sex_colors["M"]),
+    opacity = 0.6,
+    showlegend = FALSE,
+    legendgroup = "Male",
+    name = "Male"
+  ) %>%
+  # Infant Height distribution
+  add_histogram(
+    data = d_with_preds %>% filter(Sex == "I"),
+    y = ~Height,
+    marker = list(color = sex_colors["I"]),
+    opacity = 0.6,
+    showlegend = FALSE,
+    legendgroup = "Infant",
+    name = "Infant"
+  ) %>%
+  # Configure histogram layout (minimal axes)
+  layout(
+    yaxis = list(showticklabels = FALSE, title = "", showline = FALSE, zeroline = FALSE),
+    xaxis = list(showticklabels = FALSE, title = "", showline = FALSE, zeroline = FALSE),
+    barmode = "overlay"  # Overlay histograms for comparison
+  )
+
+# =============================================
+# COMBINE PLOTS USING SUBPLOT
+# =============================================
+
+# Combine scatter plot and marginal histograms
+fig <- subplot(
+  fig_hist_x, plotly_empty(),  # Top row: Length histogram, empty space
+  fig_scatter, fig_hist_y,     # Bottom row: scatter plot, Height histogram
+  nrows = 2,
+  widths = c(0.8, 0.2),       # 80% scatter, 20% right histogram
+  heights = c(0.2, 0.8),      # 20% top histogram, 80% scatter
+  shareX = TRUE,              # Share x-axis with scatter plot
+  shareY = TRUE               # Share y-axis with scatter plot
+) %>%
+  # Final layout adjustments for scientific aesthetic
+  layout(
+    title = list(
+      text = "Abalone Length vs. Height by Sex and Rings",
+      font = list(size = 14, family = "Arial", color = "black"),
+      x = 0.5, xanchor = "center"  # Centered title
+    ),
+    legend = list(
+      title = list(text = "Sex", font = list(size = 12, family = "Arial")),
+      x = 0.85, y = 0.98,        # Position legend top-right
+      xanchor = "right", yanchor = "top",
+      font = list(size = 10, family = "Arial"),
+      bgcolor = "rgba(255, 255, 255, 0.9)", # Slightly opaque background
+      bordercolor = "black",
+      borderwidth = 1
+    ),
+    showlegend = TRUE,
+    plot_bgcolor = "white",      # White plot background
+    paper_bgcolor = "white"      # White canvas background
+  )
+
+# Display the final interactive plot
+fig
+```
+
+# What is the Plotly integration differ into static integration?
+
+1.  It allows for the user to hover over points to see more information, zoom in and out, and pan around the plot. This is particularly useful for exploring large datasets or for presentations where you want to highlight specific points or trends.
+2.  It allows for the presentors to highlight some specific points or trends in the data.
+3.  It allows for the user to download the plot as a PNG image, which is not possible with static plots. This can be useful for sharing or including in reports.
+
+# Discussion
+
+The analysis of the Abalone dataset reveals several interesting insights. The pairplot shows the relationships between different features, with some features exhibiting strong correlations. The box and sina plots provide a clear visualization of the distribution of features across different Rings categories, highlighting the differences in feature values.
+
+The pca analysis and the box and sina plot show that the Length and the diameter has are very- highly correlated and nearly identical. But height plays also a important factor to the age of the ablone. One of the interesting part is that the boxplot is showing those parameters has a logrametic relationship to the result.
